@@ -1,8 +1,8 @@
-package loop
+package main
 
 import "fmt"
 
-func loop() {
+func main() {
 
 	// for loops usually dont look like this
 	// for i := 0; i < 10; i++ {
