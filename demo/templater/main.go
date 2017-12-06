@@ -12,7 +12,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 
 type NewsAggPage struct {
 	Title string
-	News string
+	News map[string]
 }
 
 func newsAggHandler(w http.ResponseWriter, r *http.Request) {
