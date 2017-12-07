@@ -3,10 +3,13 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"io/ioutil"
-	"encoding/xml"
 	"html/template"
+	"encoding/xml"
+	"io/ioutil"
+	"sync"
 )
+
+var waitGroup sync.WaitGroup
 
 type SitemapIndex struct {
 	Locations []string `xml:"sitemap>loc"`
@@ -32,10 +35,21 @@ type NewsAggPage struct {
 	News map[string]NewsMap
 }
 
+func newsRoutine(c chan News, Location string) {
+	defer waitGroup.Done()
+	var n News
+	// fmt.Printf("\n%s", Location)
+	resp, _ := http.Get(Location)
+	bytes, _ := ioutil.ReadAll(resp.Body)
+	xml.Unmarshal(bytes, &n) // unmarshal the data into the news address
+	resp.Body.Close()
+
+	c <- n
+}
+
 func newsAggHandler(w http.ResponseWriter, r *http.Request) {
 	
 	var s SitemapIndex
-	var n News
 
 	newsMap := make(map[string]NewsMap) // make a map where the keys are strings and the values are NewsMaps
 
@@ -43,14 +57,19 @@ func newsAggHandler(w http.ResponseWriter, r *http.Request) {
 	bytes, _ := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	xml.Unmarshal(bytes, &s) // unmarshal the data into the news address
-	
+	queue := make(chan News, 30)
+
 	for _, Location := range s.Locations {
-		// fmt.Printf("\n%s", Location)
-		resp, _ := http.Get(Location)
-		bytes, _ := ioutil.ReadAll(resp.Body)
-		xml.Unmarshal(bytes, &n) // unmarshal the data into the news address
-		for idx, _ := range n.Titles {
-			newsMap[n.Titles[idx]] = NewsMap{n.Keywords[idx], n.Locations[idx]}
+		waitGroup.Add(1)
+		go newsRoutine(queue, Location)
+	}
+
+	waitGroup.Wait()
+	close(queue)
+
+	for elem := range queue {
+		for idx, _ := range elem.Titles {
+			newsMap[elem.Titles[idx]] = NewsMap{elem.Keywords[idx], elem.Locations[idx]}
 		}
 	}
 
