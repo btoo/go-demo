@@ -24,7 +24,7 @@ func say(s string){
 			panic("Oh dear, a 2") // panic with this message
 		}
 	}
-	waitGroup.Done()
+	// waitGroup.Done()
 }
 
 func main(){
